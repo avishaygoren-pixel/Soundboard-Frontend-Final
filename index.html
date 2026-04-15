@@ -109,16 +109,16 @@ Markets: ${profile.markets.join(", ")}. Targets: ${profile.targetTypes.join(", "
       const [spots, setSpots]   = useState(prospect.researchedSpots || null);
       const [overlap, setOverlap] = useState(prospect.researchedOverlap || null);
 
-      const research = async () => {
+ const research = async () => {
         setStatus("loading");
         try {
-          const system = `You are a music industry researcher. Output ONLY a JSON object with this exact shape: { "spots": [{ "brand": "", "spotName": "", "type": "", "year": 2023, "description": "", "videoUrl": "", "sourceUrl": "" }], "overlap": [{ "theirBrand": "", "ourSpot": "", "ourBrand": "", "angle": "" }] }
-Our verified past work for overlap matching:\n${MY_PORTFOLIO_TEXT}`;
+          // Made the JSON requirement stricter so it stops failing
+          const system = `You are an expert music industry researcher. Output ONLY a valid JSON object: { "spots": [{ "brand": "", "spotName": "", "description": "" }], "overlap": [{ "theirBrand": "", "ourBrand": "", "angle": "" }] }. Do not include markdown, just raw JSON. Our portfolio for matching:\n${MY_PORTFOLIO_TEXT}`;
 
+          // Removed the website link, asked it to use its industry knowledge instead
           const text = await callClaude(
-            [{ role:"user", content:`Research the portfolio and client work of "${prospect.name}" at ${prospect.website}. Find their real spots, campaigns, and clients. Then identify overlaps with our past work.` }],
-            system,
-            true 
+            [{ role:"user", content:`Based on your knowledge of the advertising industry, research the client work of "${prospect.name}" (${prospect.type} based in ${prospect.location}). Identify a few known clients, brands, or typical projects they work on. Then, find strategic overlaps with our portfolio (e.g., similar industries, car brands, or musical styles).` }],
+            system
           );
 
           const parsed = JSON.parse(text);
@@ -127,7 +127,7 @@ Our verified past work for overlap matching:\n${MY_PORTFOLIO_TEXT}`;
           setStatus("done");
           return { spots: parsed.spots || [], overlap: parsed.overlap || [] };
         } catch(e) {
-          console.error(e);
+          console.error("Research parse error:", e);
           setStatus("error");
           return null;
         }
@@ -319,14 +319,16 @@ Our verified past work for overlap matching:\n${MY_PORTFOLIO_TEXT}`;
       const [selected,setSelected] = useState([]);
       const [error,setError]     = useState("");
 
-      const search = async () => {
+     const search = async () => {
         if(!query.trim()) return;
         setLoading(true); setResults([]); setError(""); setSelected([]);
         try {
-          const system = `${buildContext(profile)}\nSearch for advertising music prospects matching the user's query. Return ONLY a JSON array of 5-8 objects: { name, type ("Music House"|"Ad Agency"|"Brand"), location, website, contact (email or "—"), relevance (1 sentence) } Raw JSON only.`;
-          const text = await callClaude([{role:"user",content:`Find prospects: "${query}"`}], system, true);
+          // Changed prompt to handle specific names OR general searches
+          const system = `${buildContext(profile)}\nReturn ONLY a JSON array of up to 5 objects: { name, type ("Music House"|"Ad Agency"|"Brand"), location, relevance (1 sentence) }. If the user types a specific company name, focus on finding that exact company.`;
+          const text = await callClaude([{role:"user",content:`Find advertising prospects, agencies, or specific companies matching: "${query}"`}], system);
+          
           setResults(JSON.parse(text));
-        } catch { setError("Search failed. Check if API limit reached or format error."); }
+        } catch { setError("Search failed. Try a slightly different search term."); }
         setLoading(false);
       };
 
