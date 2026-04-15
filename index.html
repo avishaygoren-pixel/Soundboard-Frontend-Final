@@ -17,35 +17,16 @@
     const STORAGE_KEY = "soundboard_crm_v3";
 
     const MY_SPOTS = [
-      { brand: "Cheerios", spot: "Good Goes Round", type: "TV", agency: "72andSunny NY", music: "Original brand anthem", industries: ["food","cpg","cereal"] },
-      { brand: "Disney / Star Wars", spot: "DJ-R3X in Oga's Cantina", type: "Experiential", agency: "Disney Parks", music: "Original sci-fi cantina music", industries: ["entertainment","theme park","disney"] },
-      { brand: "BMW", spot: "Heritage", type: "TV / Digital", music: "Cinematic custom composition", industries: ["automotive","luxury"] },
-      { brand: "Lexus IS", spot: "All In More", type: "TV / Digital", music: "Performance custom composition", industries: ["automotive","luxury"] },
-      { brand: "Ford", spot: "Built to Lend a Hand", type: "TV", music: "Americana custom composition", industries: ["automotive","trucks"] },
-      { brand: "Airbnb", spot: "Breaking Down Walls", type: "Digital", music: "Warm/inclusive custom composition", industries: ["travel","hospitality"] },
-      { brand: "Netflix", spot: "Kipo", type: "Animation", music: "Adventurous custom composition", industries: ["streaming","animation"] },
-      { brand: "Marvel Avengers", spot: "Bend And Flex", type: "TV", music: "Action custom composition", industries: ["entertainment","toys"] },
-      { brand: "Jack Daniels", spot: "JDFlavers", type: "Digital", music: "Blues whiskey mood", industries: ["alcohol","lifestyle"] },
-      { brand: "AXE", spot: "Gold", type: "TV", music: "Stylish custom composition", industries: ["personal care","unilever"] },
-      { brand: "Carhartt", spot: "Frontier", type: "TV", music: "Rugged workwear composition", industries: ["fashion","outdoor"] },
-      { brand: "Wendy's", spot: "BaconFest", type: "TV", music: "Playful jingle", industries: ["qsr","fast food"] },
-      { brand: "HP", spot: "Reverb G2 VR", type: "Digital", music: "Tech/futuristic composition", industries: ["tech","vr"] },
-      { brand: "Fireball Whisky", spot: "Campaign", type: "Social", music: "Bold party composition", industries: ["alcohol","party"] },
-      { brand: "Famous Footwear", spot: "Back to School", type: "TV", music: "Upbeat youthful composition", industries: ["retail","fashion"] },
-      { brand: "KFC", spot: "Cafe'", type: "TV", music: "Warm lifestyle composition", industries: ["qsr","food"] },
-      { brand: "Nerf Elite", spot: "Flipshots", type: "TV", music: "Action energetic composition", industries: ["toys","kids"] },
-      { brand: "Herradura Ultra", spot: "Sound of Smoothness", type: "TV", music: "Smooth luxury tequila mood", industries: ["alcohol","luxury"] },
-      { brand: "CVS", spot: "Fold It", type: "TV", music: "Caring health composition", industries: ["health","retail"] },
-      { brand: "Sunkist", spot: "Citrus", type: "TV", music: "Sunny fresh composition", industries: ["food","beverage"] }
+      { brand: "Cheerios", spot: "Good Goes Round", type: "TV", music: "Original brand anthem", industries: ["food","cpg","cereal"] },
+      { brand: "Disney", spot: "DJ-R3X", type: "Experiential", music: "Original sci-fi cantina music", industries: ["entertainment","disney"] },
+      { brand: "BMW", spot: "Heritage", type: "TV", music: "Cinematic custom composition", industries: ["automotive"] },
+      { brand: "Lexus IS", spot: "All In More", type: "TV", music: "Performance custom composition", industries: ["automotive"] },
+      { brand: "Netflix", spot: "Kipo", type: "Animation", music: "Adventurous custom composition", industries: ["streaming","animation"] }
     ];
 
-    const MY_PORTFOLIO_TEXT = MY_SPOTS.map(s =>
-      `• ${s.brand} — "${s.spot}" | Music: ${s.music} | Industries: ${s.industries.join(", ")}`
-    ).join("\n");
+    const MY_PORTFOLIO_TEXT = MY_SPOTS.map(s => `• ${s.brand}: ${s.music}`).join("\n");
 
     const VIEWS = { SETUP:"setup", DASHBOARD:"dashboard", SEARCH:"search", PROSPECT:"prospect", COMPOSE:"compose" };
-    const STATUSES = ["New","Emailed","Replied","Meeting","Closed","Pass"];
-    const STATUS_COLORS = { New:"#4f46e5", Emailed:"#d97706", Replied:"#059669", Meeting:"#2563eb", Closed:"#7c3aed", Pass:"#6b7280" };
 
     async function storageGet(key) {
       try { const r = localStorage.getItem(key); return r ? JSON.parse(r) : null; } catch { return null; }
@@ -54,12 +35,11 @@
       try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
     }
 
-    const defaultProfile = { name:"", duo:"", markets:[], targetTypes:[], musicTypes:[], pastClients:"", reel:"", emailStyle:"" };
-    const defaultState   = { profile:defaultProfile, prospects:[], setupDone:false };
+    const defaultProfile = { name:"", duo:"", emailStyle:"personal and direct" };
+    const defaultState = { profile:defaultProfile, prospects:[], setupDone:false };
 
-    // ─── FIXED SECURE API CALL ──────────────────────────────────────────────────
+    // ─── THE FIXED API CALL ──────────────────────────────────────────────────
     async function callClaude(messages, system) {
-      // Get the actual message text from the last item in the array
       const lastMsg = messages[messages.length - 1];
       const userContent = typeof lastMsg.content === 'string' ? lastMsg.content : lastMsg.content[0].text;
 
@@ -67,133 +47,114 @@
         const res = await fetch("https://soundboard-backend-final.onrender.com/api/chat", {
           method: "POST", 
           headers: { "Content-Type": "application/json" }, 
-          body: JSON.stringify({ 
-            message: userContent 
-          })
+          body: JSON.stringify({ message: userContent })
         });
         
         const data = await res.json();
-        // Backend returns { reply: "text" }
-        return data.reply || "No response from AI.";
+        const reply = data.reply || "";
+
+        // Important: Remove AI markdown if it exists so JSON.parse doesn't break
+        return reply.replace(/```json|```/g, "").trim();
       } catch (error) {
         console.error("API Error:", error);
-        return "Search failed. Check if backend is live!";
+        return "ERROR";
       }
     }
 
     function buildContext(profile) {
-      return `You are an outreach assistant for ${profile.duo || "BrewHouse Music"}.
-PORTFOLIO:
-${MY_PORTFOLIO_TEXT}
-Email style: ${profile.emailStyle || "personal, direct"}.`;
+      return `You are a music industry assistant for ${profile.duo || "BrewHouse"}. Portfolio:\n${MY_PORTFOLIO_TEXT}`;
     }
 
     const S = {
-      label:   { fontSize:12, fontWeight:700, color:"#374151", letterSpacing:"0.06em", textTransform:"uppercase", display:"block", marginBottom:6 },
-      input:   { width:"100%", background:"#fff", border:"2px solid #e5e7eb", borderRadius:8, padding:"10px 14px", color:"#111", fontSize:14, fontFamily:"inherit", outline:"none", boxSizing:"border-box" },
-      primary: { background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"11px 22px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap" },
-      ghost:   { background:"#fff", color:"#374151", border:"2px solid #e5e7eb", borderRadius:8, padding:"9px 16px", fontSize:13, cursor:"pointer", fontFamily:"inherit", whiteSpace:"nowrap", fontWeight:500 },
+      input: { width:"100%", border:"2px solid #e5e7eb", borderRadius:8, padding:"10px 14px", marginBottom:10 },
+      primary: { background:"#4f46e5", color:"#fff", border:"none", borderRadius:8, padding:"11px 22px", fontWeight:700, cursor:"pointer" },
+      ghost: { background:"#fff", border:"2px solid #e5e7eb", borderRadius:8, padding:"9px 16px", cursor:"pointer" }
     };
 
-    function Chip({ label, active, onClick }) {
-      return <button onClick={onClick} style={{ padding:"7px 16px", borderRadius:999, fontSize:13, cursor:"pointer", background:active?"#4f46e5":"#fff", color:active?"#fff":"#555", border:active?"2px solid #4f46e5":"2px solid #e5e7eb", fontFamily:"inherit", fontWeight:active?600:400 }}>{label}</button>;
-    }
-    function StatusBadge({ status }) {
-      return <span style={{ padding:"3px 10px", borderRadius:999, fontSize:11, fontWeight:700, background:STATUS_COLORS[status]+"18", color:STATUS_COLORS[status], border:`1.5px solid ${STATUS_COLORS[status]}40` }}>{status}</span>;
-    }
-
-    // ─── Research Component ──────────────────────────────────────────────────
+    // ─── Research Panel (The Insights Box) ───────────────────────────────────
     function ResearchPanel({ prospect }) {
-      const [status, setStatus] = useState("idle"); 
-      const [data, setData] = useState(null);
+      const [status, setStatus] = useState("loading"); 
+      const [insights, setInsights] = useState(null);
 
-      const research = async () => {
-        setStatus("loading");
-        const prompt = `Research the portfolio of "${prospect.name}" at ${prospect.website}. Find their real campaigns. Output JSON: { "spots": [{"brand":"", "description":""}] }`;
-        const reply = await callClaude([{role:"user", content:prompt}], "You are a researcher.");
-        try {
-          const clean = reply.replace(/```json|```/g,"").trim();
-          setData(JSON.parse(clean));
-          setStatus("done");
-        } catch { setStatus("error"); }
-      };
+      useEffect(() => {
+        const run = async () => {
+          const prompt = `Research ${prospect.name}. Find 2 recent ad campaigns they produced. Output ONLY JSON: {"spots": [{"brand":"", "desc":""}]}`;
+          const res = await callClaude([{role:"user", content:prompt}], "Searcher");
+          try {
+            setInsights(JSON.parse(res));
+            setStatus("done");
+          } catch { setStatus("none"); }
+        };
+        run();
+      }, [prospect.name]);
 
-      useEffect(() => { research(); }, []);
-
-      if (status === "loading") return <div style={{color:"#6b7280", fontSize:12, padding:10}}>Searching for their work...</div>;
+      if (status === "loading") return <div style={{padding:15, color:"#666"}}>🔍 Finding insights for {prospect.name}...</div>;
+      
       return (
-        <div style={{ background:"#f0fdf4", border:"1px solid #86efac", borderRadius:10, padding:14, marginBottom:12 }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#15803d", marginBottom:8 }}>PORTFOLIO CLUES</div>
-          {data?.spots?.map((s, i) => (
-            <div key={i} style={{fontSize:13, marginBottom:4}}><strong>{s.brand}</strong>: {s.description}</div>
+        <div style={{ background:"#f0fdf4", border:"1px solid #86efac", borderRadius:10, padding:15, marginBottom:20 }}>
+          <h4 style={{ color:"#15803d", marginBottom:10, fontSize:12 }}>AI INSIGHTS & RECENT WORK</h4>
+          {insights?.spots?.map((s, i) => (
+            <div key={i} style={{fontSize:13, marginBottom:8}}>
+              <strong>{s.brand}</strong>: {s.desc}
+            </div>
           ))}
         </div>
       );
     }
 
-    // ─── Views ───────────────────────────────────────────────────────────────────
     function SetupView({ profile, onSave }) {
       const [p,setP] = useState(profile);
-      const toggle = (f,v) => setP(prev=>({...prev,[f]:prev[f].includes(v)?prev[f].filter(x=>x!==v):[...prev[f],v]}));
       return (
-        <div style={{ maxWidth:500, margin:"40px auto", padding:20 }}>
-          <h2 style={{marginBottom:20}}>Setup Your Profile</h2>
-          <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
-            <input style={S.input} value={p.name} onChange={e=>setP({...p,name:e.target.value})} placeholder="Your Name"/>
-            <input style={S.input} value={p.duo} onChange={e=>setP({...p,duo:e.target.value})} placeholder="Duo Name"/>
-            <button onClick={()=>onSave(p)} style={S.primary}>Save & Continue</button>
-          </div>
+        <div style={{ maxWidth:400, margin:"100px auto", textAlign:"center" }}>
+          <h2>Welcome to Soundboard</h2>
+          <input style={S.input} value={p.name} onChange={e=>setP({...p,name:e.target.value})} placeholder="Your Name"/>
+          <input style={S.input} value={p.duo} onChange={e=>setP({...p,duo:e.target.value})} placeholder="Duo Name"/>
+          <button onClick={()=>onSave(p)} style={S.primary}>Get Started</button>
         </div>
       );
     }
 
-    function DashboardView({ prospects, profile, onSearch, onSelectProspect }) {
+    function DashboardView({ prospects, profile, onSearch, onSelect }) {
       return (
-        <div style={{ padding:24, maxWidth:800, margin:"0 auto" }}>
-          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:30 }}>
+        <div style={{ padding:40, maxWidth:800, margin:"0 auto" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:40 }}>
             <h1>Hey {profile.name} 👋</h1>
             <button onClick={onSearch} style={S.primary}>+ Find Clients</button>
           </div>
-          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            {prospects.map(p => (
-              <div key={p.id} onClick={()=>onSelectProspect(p)} style={{ background:"#fff", padding:16, borderRadius:10, border:"1px solid #e5e7eb", cursor:"pointer" }}>
-                <div style={{fontWeight:700}}>{p.name}</div>
-                <div style={{fontSize:12, color:"#6b7280"}}>{p.location} · {p.type}</div>
-              </div>
-            ))}
-          </div>
+          {prospects.map(p => (
+            <div key={p.id} onClick={()=>onSelect(p)} style={{ background:"#fff", padding:20, borderRadius:12, border:"1px solid #e5e7eb", marginBottom:10, cursor:"pointer" }}>
+              <strong>{p.name}</strong> — <span style={{color:"#666"}}>{p.location}</span>
+            </div>
+          ))}
         </div>
       );
     }
 
-    function SearchView({ profile, onBack, onAddProspects }) {
-      const [query,setQuery] = useState("");
+    function SearchView({ profile, onBack, onAdd }) {
+      const [q,setQ] = useState("");
       const [loading,setLoading] = useState(false);
       const [results,setResults] = useState([]);
 
-      const search = async () => {
+      const handleSearch = async () => {
         setLoading(true);
-        const prompt = `Find 5 real music houses or ad agencies for "${query}". Output JSON: [{"name":"", "type":"", "location":"", "website":"", "relevance":""}]`;
-        const reply = await callClaude([{role:"user",content:prompt}], buildContext(profile));
-        try {
-          const clean = reply.replace(/```json|```/g,"").trim();
-          setResults(JSON.parse(clean));
-        } catch(e) { console.error(e); }
+        const prompt = `Find 5 ad agencies or music houses in ${q}. Return ONLY JSON: [{"name":"","location":"","relevance":""}]`;
+        const res = await callClaude([{role:"user", content:prompt}], "Business scout");
+        try { setResults(JSON.parse(res)); } catch {}
         setLoading(false);
       };
 
       return (
-        <div style={{ maxWidth:600, margin:"40px auto", padding:20 }}>
-          <button onClick={onBack} style={S.ghost}>← Back</button>
+        <div style={{ padding:40, maxWidth:600, margin:"0 auto" }}>
+          <button onClick={onBack} style={S.ghost}>Back</button>
           <div style={{ display:"flex", gap:10, margin:"20px 0" }}>
-            <input style={S.input} value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. Ad agencies in London"/>
-            <button onClick={search} style={S.primary} disabled={loading}>{loading ? "..." : "Search"}</button>
+            <input style={S.input} value={q} onChange={e=>setQ(e.target.value)} placeholder="City or Industry..."/>
+            <button onClick={handleSearch} style={S.primary}>{loading ? "..." : "Search"}</button>
           </div>
-          {results.map((r, i) => (
+          {results.map((r,i) => (
             <div key={i} style={{ background:"#fff", padding:15, borderRadius:8, marginBottom:10, border:"1px solid #e5e7eb" }}>
-              <div style={{fontWeight:700}}>{r.name}</div>
-              <p style={{fontSize:13}}>{r.relevance}</p>
-              <button onClick={()=>onAddProspects([{...r, id:Date.now()+i, status:"New"}])} style={{marginTop:10, fontSize:12, color:"#4f46e5", background:"none", border:"none", cursor:"pointer", fontWeight:700}}>+ Add to CRM</button>
+              <strong>{r.name}</strong> ({r.location})
+              <p style={{fontSize:12, color:"#666", margin:"5px 0"}}>{r.relevance}</p>
+              <button onClick={()=>onAdd({...r, id:Date.now()+i})} style={{color:"#4f46e5", background:"none", border:"none", cursor:"pointer", padding:0, fontWeight:700}}>+ Add to CRM</button>
             </div>
           ))}
         </div>
@@ -202,72 +163,56 @@ Email style: ${profile.emailStyle || "personal, direct"}.`;
 
     function ProspectView({ prospect, onBack, onCompose }) {
       return (
-        <div style={{ maxWidth:600, margin:"40px auto", padding:20 }}>
-          <button onClick={onBack} style={S.ghost}>← Back</button>
-          <h2 style={{margin:"20px 0"}}>{prospect.name}</h2>
+        <div style={{ padding:40, maxWidth:600, margin:"0 auto" }}>
+          <button onClick={onBack} style={S.ghost}>Back</button>
+          <h1 style={{margin:"20px 0"}}>{prospect.name}</h1>
           <ResearchPanel prospect={prospect} />
-          <button onClick={onCompose} style={S.primary}>Write Email</button>
+          <button onClick={onCompose} style={S.primary}>Write Outreach Email</button>
         </div>
       );
     }
 
     function ComposeView({ prospect, profile, onBack }) {
-      const [email, setEmail] = useState("");
-      const [loading, setLoading] = useState(true);
-
-      const write = async () => {
-        setLoading(true);
-        const prompt = `Write a short, personal outreach email to ${prospect.name} about music for their campaigns. Style: ${profile.emailStyle}.`;
-        const reply = await callClaude([{role:"user", content:prompt}], buildContext(profile));
-        setEmail(reply);
-        setLoading(false);
-      };
-
-      useEffect(() => { write(); }, []);
-
+      const [mail, setMail] = useState("");
+      useEffect(() => {
+        const run = async () => {
+          const res = await callClaude([{role:"user", content:`Write a short email to ${prospect.name}.`}], buildContext(profile));
+          setMail(res);
+        };
+        run();
+      }, []);
       return (
-        <div style={{ maxWidth:600, margin:"40px auto", padding:20 }}>
-          <button onClick={onBack} style={S.ghost}>← Back</button>
+        <div style={{ padding:40, maxWidth:600, margin:"0 auto" }}>
+          <button onClick={onBack} style={S.ghost}>Back</button>
           <h2 style={{margin:"20px 0"}}>Draft for {prospect.name}</h2>
-          {loading ? <p>Writing...</p> : <textarea style={{...S.input, minHeight:200, lineHeight:1.6}} value={email} onChange={e=>setEmail(e.target.value)} />}
+          <textarea style={{...S.input, minHeight:300}} value={mail} onChange={e=>setMail(e.target.value)} />
         </div>
       );
     }
 
-    // ─── Root ─────────────────────────────────────────────────────────────────────
     function App() {
       const [state,setState] = useState(null);
       const [view,setView] = useState(VIEWS.DASHBOARD);
-      const [selectedProspect,setSelected] = useState(null);
+      const [sel,setSel] = useState(null);
 
-      useEffect(()=>{
-        storageGet(STORAGE_KEY).then(saved=>{
-          setState(saved || defaultState);
-          if(!saved?.setupDone) setView(VIEWS.SETUP);
+      useEffect(() => {
+        storageGet(STORAGE_KEY).then(s => {
+          setState(s || defaultState);
+          if(!s?.setupDone) setView(VIEWS.SETUP);
         });
-      },[]);
+      }, []);
 
-      const saveProfile = p => {
-        const next = {...state, profile:p, setupDone:true};
-        setState(next); storageSet(STORAGE_KEY, next);
-        setView(VIEWS.DASHBOARD);
-      };
-
-      const addProspects = list => {
-        const next = {...state, prospects:[...state.prospects, ...list]};
-        setState(next); storageSet(STORAGE_KEY, next);
-        setView(VIEWS.DASHBOARD);
-      };
+      const save = (next) => { setState(next); storageSet(STORAGE_KEY, next); };
 
       if(!state) return null;
 
       return (
-        <div style={{ minHeight:"100vh", background:"#f3f4f6", fontFamily:"sans-serif" }}>
-          {view===VIEWS.SETUP && <SetupView profile={state.profile} onSave={saveProfile}/>}
-          {view===VIEWS.DASHBOARD && <DashboardView prospects={state.prospects} profile={state.profile} onSearch={()=>setView(VIEWS.SEARCH)} onSelectProspect={p=>{setSelected(p);setView(VIEWS.PROSPECT);}}/>}
-          {view===VIEWS.SEARCH && <SearchView profile={state.profile} onBack={()=>setView(VIEWS.DASHBOARD)} onAddProspects={addProspects}/>}
-          {view===VIEWS.PROSPECT && <ProspectView prospect={selectedProspect} onBack={()=>setView(VIEWS.DASHBOARD)} onCompose={()=>setView(VIEWS.COMPOSE)}/>}
-          {view===VIEWS.COMPOSE && <ComposeView prospect={selectedProspect} profile={state.profile} onBack={()=>setView(VIEWS.PROSPECT)}/>}
+        <div style={{ minHeight:"100vh", background:"#f9fafb", fontFamily:"sans-serif" }}>
+          {view===VIEWS.SETUP && <SetupView profile={state.profile} onSave={p=> {save({...state, profile:p, setupDone:true}); setView(VIEWS.DASHBOARD);}}/>}
+          {view===VIEWS.DASHBOARD && <DashboardView profile={state.profile} prospects={state.prospects} onSearch={()=>setView(VIEWS.SEARCH)} onSelect={p=>{setSel(p); setView(VIEWS.PROSPECT);}}/>}
+          {view===VIEWS.SEARCH && <SearchView onBack={()=>setView(VIEWS.DASHBOARD)} onAdd={p=>{save({...state, prospects:[...state.prospects, p]}); setView(VIEWS.DASHBOARD);}}/>}
+          {view===VIEWS.PROSPECT && <ProspectView prospect={sel} onBack={()=>setView(VIEWS.DASHBOARD)} onCompose={()=>setView(VIEWS.COMPOSE)}/>}
+          {view===VIEWS.COMPOSE && <ComposeView prospect={sel} profile={state.profile} onBack={()=>setView(VIEWS.PROSPECT)}/>}
         </div>
       );
     }
