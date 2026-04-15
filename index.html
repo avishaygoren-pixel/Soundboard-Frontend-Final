@@ -377,38 +377,56 @@ Markets: ${profile.markets.join(", ")}. Targets: ${profile.targetTypes.join(", "
     }
 
     // ─── Prospect ─────────────────────────────────────────────────────────────────
-    function ProspectView({ prospect, profile, onBack, onUpdate, onCompose }) {
+    function ProspectView({ prospect, profile, onBack, onUpdate, onCompose, onDelete }) {
       const [p,setP] = useState(prospect);
       const save = updates => { const u={...p,...updates}; setP(u); onUpdate(u); };
 
+      const handleDelete = () => {
+        if(window.confirm(`Are you sure you want to delete ${p.name}?`)) {
+          onDelete(p.id);
+        }
+      };
+
       return (
         <div style={{ maxWidth:720, margin:"0 auto", padding:"32px 24px" }}>
-          <button onClick={onBack} style={S.ghost}>← Back</button>
+          <div style={{ display:"flex", justifyContent:"space-between" }}>
+            <button onClick={onBack} style={S.ghost}>← Back</button>
+            <button onClick={handleDelete} style={{ ...S.ghost, color:"#dc2626", borderColor:"#fca5a5" }}>🗑️ Delete</button>
+          </div>
+          
           <div style={{ margin:"24px 0 24px", display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:16 }}>
             <div>
               <div style={{ fontSize:11, color:"#4f46e5", fontWeight:800, letterSpacing:"0.15em", marginBottom:6 }}>{p.type?.toUpperCase()}</div>
-              <h2 style={{ fontSize:26, fontWeight:800, color:"#111" }}>{p.name}</h2>
-              <div style={{ fontSize:14, color:"#6b7280", marginTop:4 }}>{p.location}</div>
+              <h2 style={{ fontSize:26, fontWeight:800, color:"#111", marginBottom:8 }}>{p.name}</h2>
+              <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+                <input style={{...S.input, padding:"6px 10px", fontSize:13, width:180}} placeholder="Website URL" value={p.website||""} onChange={e=>save({website:e.target.value})} />
+                <input style={{...S.input, padding:"6px 10px", fontSize:13, width:180}} placeholder="Contact Email" value={p.email||""} onChange={e=>save({email:e.target.value})} />
+              </div>
             </div>
             <button onClick={onCompose} style={S.primary}>✉ Write email</button>
           </div>
+          
           <div style={{ marginBottom:24 }}>
             <label style={S.label}>Status</label>
             <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{STATUSES.map(s=><Chip key={s} label={s} active={p.status===s} onClick={()=>save({status:s})}/>)}</div>
           </div>
+          
           {p.relevance && (
             <div style={{ background:"#f5f3ff", border:"1.5px solid #c4b5fd", borderRadius:10, padding:"14px 18px", marginBottom:14 }}>
               <div style={{ fontSize:11, color:"#7c3aed", fontWeight:700, letterSpacing:"0.08em", marginBottom:6 }}>WHY RELEVANT</div>
               <p style={{ fontSize:14, color:"#4b5563", lineHeight:1.6 }}>{p.relevance}</p>
             </div>
           )}
+          
           <ResearchPanel prospect={p} profile={profile} />
+          
           <div style={{ marginBottom:24 }}>
             <label style={S.label}>Notes</label>
             <textarea value={p.notes} onChange={e=>save({notes:e.target.value})} style={{...S.input,minHeight:100,resize:"vertical"}} placeholder="Add notes..."/>
           </div>
         </div>
       );
+    }
     }
 
     // ─── Compose ──────────────────────────────────────────────────────────────────
@@ -418,8 +436,7 @@ Markets: ${profile.markets.join(", ")}. Targets: ${profile.targetTypes.join(", "
 
       const generate = async () => {
         setLoading(true);
-        const system = `${buildContext(profile)}\nWrite a personal outreach email (max 180 words) to ${prospect.name}.\nStyle: ${profile.emailStyle||"personal, direct"}.\nNo subject line. No "I hope this finds you well". Sign off naturally.`;
-        const text = await callClaude([{role:"user",content:`Write outreach email to: ${prospect.name} (${prospect.type}, ${prospect.location}). Why relevant: ${prospect.relevance}.`}], system);
+const system = `${buildContext(profile)}\nReturn ONLY a JSON array of up to 5 objects: { name, type ("Music House"|"Ad Agency"|"Brand"), location, relevance, website (url or blank), email (address or blank) }. If the user types a specific company name, focus on finding that exact company.`;        const text = await callClaude([{role:"user",content:`Write outreach email to: ${prospect.name} (${prospect.type}, ${prospect.location}). Why relevant: ${prospect.relevance}.`}], system);
         setEmail(text.trim()); setLoading(false);
       };
 
