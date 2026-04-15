@@ -470,9 +470,10 @@ Markets: ${profile.markets.join(", ")}. Targets: ${profile.targetTypes.join(", "
 
       const saveProfile  = p  => { persist({profile:p,setupDone:true}); setView(VIEWS.DASHBOARD); };
       const addProspects = list => { persist({prospects:[...(state.prospects||[]),...list]}); setView(VIEWS.DASHBOARD); };
-      const updateProspect = u => { persist({prospects:state.prospects.map(p=>p.id===u.id?u:p)}); setSelected(u); };
+const updateProspect = u => { persist({prospects:state.prospects.map(p=>p.id===u.id?u:p)}); setSelected(u); };
+      const deleteProspect = id => { persist({prospects:state.prospects.filter(p=>p.id!==id)}); setView(VIEWS.DASHBOARD); };
       const saveEmail    = obj => { const u={...selectedProspect,emails:[...(selectedProspect.emails||[]),obj],status:"Emailed"}; updateProspect(u); setView(VIEWS.PROSPECT); };
-
+      
       if(!ready||!state) return <div style={{textAlign:"center", marginTop:"50px"}}>Loading...</div>;
 
       const currentProspect = (view===VIEWS.PROSPECT||view===VIEWS.COMPOSE)?selectedProspect:null;
@@ -495,7 +496,7 @@ Markets: ${profile.markets.join(", ")}. Targets: ${profile.targetTypes.join(", "
           {view===VIEWS.SETUP     && <SetupView profile={state.profile} onSave={saveProfile}/>}
           {view===VIEWS.DASHBOARD && <DashboardView prospects={state.prospects} profile={state.profile} onSearch={()=>setView(VIEWS.SEARCH)} onSelectProspect={p=>{setSelected(p);setView(VIEWS.PROSPECT);}} onEditProfile={()=>setView(VIEWS.SETUP)}/>}
           {view===VIEWS.SEARCH    && <SearchView profile={state.profile} onBack={()=>setView(VIEWS.DASHBOARD)} onAddProspects={addProspects}/>}
-          {view===VIEWS.PROSPECT  && selectedProspect && <ProspectView prospect={selectedProspect} profile={state.profile} onBack={()=>setView(VIEWS.DASHBOARD)} onUpdate={updateProspect} onCompose={()=>setView(VIEWS.COMPOSE)}/>}
+          {view===VIEWS.PROSPECT  && selectedProspect && <ProspectView prospect={selectedProspect} profile={state.profile} onBack={()=>setView(VIEWS.DASHBOARD)} onUpdate={updateProspect} onCompose={()=>setView(VIEWS.COMPOSE)} onDelete={deleteProspect}/>}
           {view===VIEWS.COMPOSE   && selectedProspect && <ComposeView prospect={selectedProspect} profile={state.profile} onBack={()=>setView(VIEWS.PROSPECT)} onSave={saveEmail}/>}
           {state.setupDone && <ChatAssistant profile={state.profile} prospect={currentProspect}/>}
         </div>
